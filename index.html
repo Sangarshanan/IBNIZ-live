@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBNIZ Live</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Space Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #0d0d0d;
+            color: #e0e0e0;
+        }
+
+        /* Canvas background */
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+
+        /* Floating code editor bar */
+        .show-editor-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(13, 13, 13, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+            color: #4ecdc4;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 10;
+            pointer-events: all;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .show-editor-btn:hover {
+            background: rgba(78, 205, 196, 0.1);
+        }
+
+        .floating-editor {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(13, 13, 13, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0;
+            z-index: 10;
+            pointer-events: all;
+            min-width: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: flex-end;
+            padding: 8px 8px 0 8px;
+        }
+
+        .hide-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+
+        .hide-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+        }
+
+        .editor-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 0 15px 15px 15px;
+        }
+
+        .preset-select {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e0e0e0;
+            font-family: inherit;
+            font-size: 11px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .preset-select:focus {
+            border-color: #4ecdc4;
+            box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.2);
+        }
+
+        .preset-select option {
+            background: #0d0d0d;
+            color: #e0e0e0;
+        }
+
+        #code-editor {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e0e0e0;
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.4;
+            padding: 8px 12px;
+            border-radius: 4px;
+            outline: none;
+            width: 100%;
+            resize: none;
+        }
+
+        #code-editor:focus {
+            border-color: #4ecdc4;
+            box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.1);
+        }
+
+        .hq-control {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .hq-control label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+        }
+
+        .hq-control input[type="checkbox"] {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .hq-control input[type="checkbox"]:checked {
+            background: #4ecdc4;
+            border-color: #4ecdc4;
+        }
+
+        .hq-control input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0d0d0d;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .hq-control input[type="checkbox"]:checked + span {
+            color: #4ecdc4;
+        }
+
+        .stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: #4ecdc4;
+            font-size: 12px;
+            display: flex;
+            gap: 15px;
+            opacity: 0.8;
+            background: rgba(13, 13, 13, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            z-index: 10;
+            pointer-events: none;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-bar {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(13, 13, 13, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            z-index: 10;
+            pointer-events: all;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-bar a {
+            color: #4ecdc4;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.2s ease;
+        }
+
+        .info-bar a:hover {
+            color: #5fd5d0;
+        }
+
+        .help-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 70px;
+            width: 32px;
+            height: 32px;
+            background: rgba(13, 13, 13, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: #4ecdc4;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .help-btn:hover {
+            background: rgba(78, 205, 196, 0.1);
+            transform: scale(1.1);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: rgba(13, 13, 13, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: modalAppear 0.3s ease-out;
+        }
+
+        @keyframes modalAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            color: #4ecdc4;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+        }
+
+        .modal-content {
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .modal-content p {
+            margin: 0 0 16px 0;
+        }
+
+        .modal-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-link {
+            color: #4ecdc4;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s ease;
+        }
+
+        .modal-link:hover {
+            color: #5fd5d0;
+            text-decoration: underline;
+        }
+
+        .modal-content strong {
+            color: #4ecdc4;
+        }
+
+        .github-buttons {
+            display: flex;
+            gap: 12px;
+            margin: 16px 0;
+            flex-wrap: wrap;
+        }
+
+        .github-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            border-radius: 6px;
+            color: #4ecdc4;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+
+        .github-button:hover {
+            background: rgba(78, 205, 196, 0.2);
+            border-color: #4ecdc4;
+            color: #5fd5d0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(78, 205, 196, 0.2);
+        }
+
+        .github-button svg {
+            flex-shrink: 0;
+        }
+
+        .star-button:hover {
+            background: rgba(255, 193, 7, 0.2);
+            border-color: #ffc107;
+            color: #ffc107;
+        }
+
+        .fork-button:hover {
+            background: rgba(108, 117, 125, 0.2);
+            border-color: #6c757d;
+            color: #adb5bd;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .floating-editor {
+                min-width: 300px;
+                left: 10px;
+                top: 10px;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <!-- Show editor button (hidden by default) -->
+    <button class="show-editor-btn" id="show-editor" title="Show editor" style="display: none;">⌨</button>
+
+    <!-- Floating code editor bar -->
+    <div class="floating-editor" id="floating-editor">
+        <div class="editor-header">
+            <button class="hide-btn" id="hide-editor" title="Hide editor">×</button>
+        </div>
+        <div class="editor-content">
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <select class="preset-select" id="implementation-select" style="flex: 1;">
+                    <option value="original">Visual</option>
+                    <option value="alternative">Audio Visual</option>
+                </select>
+                <select class="preset-select" id="presets" style="flex: 2;">
+                    <option value="**">Simple Pattern</option>
+                    <option value="^x7r+Md8r&">Munching Squares</option>
+                    <option value="sv5rvs--">Plasma</option>
+                    <option value="v8rsdv*vv*^">XOR Texture Zoomer</option>
+                    <option value="8rw10r%w18r%">Opening Gate (FreeFull)</option>
+                    <option value="sxsaxAr+waxBr+^">Spinny (FreeFull)</option>
+                    <option value="axp wvvx3r40/&^^ wd*xd*+qq1x/sx8r++ 30FF|">Rose (FreeFull)</option>
+                    <option value="8rw10raw8r+w18r^">XOR Wiggle (FreeFull)</option>
+                    <option value="v8rsdv*vv*^wpp8r-">Munching Zoomer</option>
+                    <option value="ax8r+3lwd*xd*+q1x/x5r+^">Texture Tunnel</option>
+                    <option value="v8rds4X3)Lx~2Xv*vv*+i!L1@2@^">Rotozoomer</option>
+                    <option value="sa*">Bubsy Pattern</option>
+                    <option value="d4rr">4-Char Demo (asiekierka)</option>
+                    <option value="w8r-sqwqd*&w1~&+">Glass (asiekierka)</option>
+                    <option value="6{^^ddd***1%}5{v8rsdv*vv*^wpp8r-}4{v8rdsx.6+s4X3)Lx~2Xv*vv*+i!L1@2@^}3{ax8r+3lwd*xd*+q1x/x6r+^}2)6r3&3+V55A9^Md6r|5*wdAr&+">Viznut Demo</option>
+                    <option value="axCr3ls3r+43lwd*xd*+q1x/x7r+^1%w^x20r8l+^M3*w5r&w5*w9r&w2*w6r&||">Christmas Demo (FreeFull)</option>
+                </select>
+            </div>
+            <textarea id="code-editor" placeholder="Type IBNIZ code here..." spellcheck="false" rows="3">**</textarea>
+            <div class="hq-control">
+                <label>
+                    <input type="checkbox" id="high-quality">
+                    <span>HQ</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats display in top right -->
+    <div class="stats">
+        <span>T:</span><span id="time">0000</span>
+        <span>FPS:</span><span id="fps">60</span>
+    </div>
+
+    <!-- Help button -->
+    <button class="help-btn" id="help-btn" title="Help">?</button>
+
+    <!-- Help modal -->
+    <div class="modal-overlay" id="help-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">About IBNIZ</h2>
+                <button class="modal-close" id="modal-close">×</button>
+            </div>
+            <div class="modal-content">
+                <p><strong>IBNIZ</strong> is a minimalist virtual machine and esoteric programming language for creating audiovisual art and demos.</p>
+
+                <p>In IBNIZ, you write short programs that generate both graphics and sound. The language uses a stack-based approach where operations manipulate coordinates and time to create patterns, animations, and audio.</p>
+
+                <p><strong>Learn more:</strong></p>
+                <p>• <a href="http://viznut.fi/ibniz/" target="_blank" class="modal-link">Official IBNIZ blog by viznut</a><br>
+                • <a href="https://ibniz.breizh-entropy.org/" target="_blank" class="modal-link">Original playground (inspiration for this site)</a></p>
+
+                <p>Try the presets above to see IBNIZ in action!</p>
+
+                <div class="github-buttons">
+                    <a href="https://github.com/Sangarshanan/IBNIZ-live" target="_blank" class="github-button star-button">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+                        </svg>
+                        Star on GitHub
+                    </a>
+                    <a href="https://github.com/Sangarshanan/IBNIZ-live/fork" target="_blank" class="github-button fork-button">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm0 2.122a2.25 2.25 0 1 0-1.5 0v.878A2.25 2.25 0 0 0 5.75 8.5h1.5v2.128a2.251 2.251 0 1 0 1.5 0V8.5h1.5a2.25 2.25 0 0 0 2.25-2.25v-.878a2.25 2.25 0 1 0-1.5 0v.878a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 5 6.25v-.878z"/>
+                        </svg>
+                        Fork on GitHub
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="jibniz.js"></script>
+    <script src="jibniz-alt.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

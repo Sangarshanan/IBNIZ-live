@@ -11,11 +11,3 @@ Thumbs.db
 .*
 !.gitignore
 !.gitkeep
-
-# HTML artifacts
-*.html
-build/
-dist/
-public/
-*.min.html
-*.compressed.html
